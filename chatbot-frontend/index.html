@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Support Chatbot</title>
+    <style>
+        /* ------------------------------------------------ */
+        /* GLOBAL LAYOUT & STYLES (Full Page Application Shell) */
+        /* ------------------------------------------------ */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            color: #d1d5db;
+        }
+
+        /* ------------------------------------------------ */
+        /* 1. SIDEBAR NAVIGATION (Left Column) */
+        /* ------------------------------------------------ */
+        #sidebar {
+            width: 260px;
+            height: 100%;
+            background-color: #202123;
+            padding: 10px;
+            flex-shrink: 0;
+            border-right: 1px solid #3c3c3c;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .new-chat-item {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            background-color: #40414f;
+            color: #f7f7f7;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+        .new-chat-item:hover {
+            background-color: #4f505e;
+        }
+
+        .sidebar-item {
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            color: #d1d5db;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .sidebar-item:hover {
+            background-color: #2c2c2f;
+        }
+
+        /* ------------------------------------------------ */
+        /* 2. MAIN CONTENT AREA (The Chat Window) */
+        /* ------------------------------------------------ */
+        #main-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: hidden;
+            position: relative;
+        }
+
+        /* ------------------------------------------------ */
+        /* WELCOME SCREEN (Centered Greeting) */
+        /* ------------------------------------------------ */
+        #welcome-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;`
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            padding-bottom: 25%; /* Pushes greeting up */
+        }
+
+        #welcome-title {
+            font-size: 1.8em;
+            font-weight: 400;
+            color: #f7f7f7;
+            margin-bottom: 20px;
+        }
+
+        /* ------------------------------------------------ */
+        /* CHAT HISTORY & MESSAGES */
+        /* ------------------------------------------------ */
+        #chat-container {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            height: 100vh;
+            margin: 0 auto;
+            position: relative;
+            top: 0;
+            left: 0;
+            right: 0;
+            overflow-y: hidden;
+        }
+
+        #chat-messages {
+            flex-grow: 1;
+            /* CRITICAL FIX: Add extra padding at the bottom equal to the input height + margin */
+            padding: 20px 0 150px 0;
+            height: 100%;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        /* MESSAGE BUBBLES & AVATARS */
+        .message-wrapper {
+            display: flex;
+            align-items: flex-start;
+            padding: 10px 20px;
+            margin-bottom: 0px;
+            max-width: 100%;
+        }
+
+        .avatar {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .ai-avatar {
+            background-color: #10a37f;
+            color: white;
+            margin-right: 15px;
+        }
+
+        .user-avatar {
+            background-color: #444;
+            color: white;
+            margin-left: 15px;
+        }
+
+        /* Message Content Box */
+        .message {
+            flex-grow: 1;
+            padding: 0;
+            color: #f7f7f7;
+            line-height: 1.6;
+            background-color: transparent !important;
+        }
+
+        /* User Message Row */
+        .user-message-wrapper {
+            background-color: #343541;
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        /* User Text Alignment */
+        .user-message {
+            color: #d1d5db;
+            padding-top: 5px;
+            font-size: 1.05em;
+            text-align: right;
+            order: 1;
+        }
+
+        .user-avatar {
+            order: 2;
+        }
+
+        /* AI Message Row */
+        .ai-message-wrapper {
+            background-color: #444654;
+            border-bottom: 1px solid #3d3d40;
+            padding-right: 20px;
+        }
+
+        .ai-message {
+            color: #f7f7f7;
+            padding-top: 5px;
+            text-align: left;
+        }
+
+        /* Code Styling */
+        .message pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+
+        /* ------------------------------------------------ */
+        /* INPUT & CONTROLS */
+        /* ------------------------------------------------ */
+        #input-container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px 0 30px 0;
+            box-sizing: border-box;
+            background-color: transparent;
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #input-form {
+            display: flex;
+            width: 65%;
+            margin: 0 auto;
+            background-color: #40414f;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            padding: 10px;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            margin-right: 10px;
+            font-size: 16px;
+            resize: none;
+            background-color: transparent;
+            color: #d1d5db;
+        }
+        #user-input:focus {
+            outline: none;
+        }
+
+        #send-button {
+            background-color: #10a37f;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .chat-actions {
+            display: none;
+        }
+
+        /* ------------------------------------------------ */
+        /* FEEDBACK BUTTONS */
+        /* ------------------------------------------------ */
+        .feedback-controls {
+            margin-top: 10px;
+            text-align: left;
+        }
+        .feedback-button {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            padding: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s, border 0.2s;
+        }
+        .feedback-button.feedback-selected {
+            background-color: #333;
+            border: 1px solid #333;
+            filter: invert(1);
+        }
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+            margin: 10px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="new-chat-item" id="sidebar-new-chat">
+        + New Chat
+    </div>
+
+    <div class="sidebar-header">
+        Your Chats
+    </div>
+    <div class="sidebar-item">Greeting exchange</div>
+    <div class="sidebar-item">API full form</div>
+    <div class="sidebar-item">SQL inequality operator</div>
+    <div class="sidebar-item">Fix compile error</div>
+    <div class="sidebar-item">Linked list syntax</div>
+    <div class="sidebar-item">GitHub README content</div>
+
+</div>
+
+<div id="main-area">
+
+    <div id="welcome-container">
+        <div id="welcome-title">Hello! How can I help you today?</div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-messages">
+        </div>
+    </div>
+
+    <div id="input-container">
+        <form id="input-form">
+            <input type="text" id="user-input" placeholder="Type your message..." required>
+            <button type="submit" id="send-button">Send</button>
+        </form>
+    </div>
+
+</div> <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

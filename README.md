@@ -74,12 +74,12 @@ AI CHAT BOT PROJECT/
 │ ├── server.js ← Main backend file (API + chat handling)
 │ ├── db.js ← Database connection layer
 │ └── package.json ← Backend dependencies
+
 │
 └── chatbot-frontend/ ← Complete UI Layer
 ├── index.html ← Main UI page (chat layout + sidebar)
 └── js/
 └── app.js ← UI events & API request handler
----
 
 ## 🚀 HOW TO RUN THE PROJECT
 

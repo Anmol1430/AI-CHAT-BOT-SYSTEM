@@ -70,6 +70,7 @@ HTML5, CSS, Vanilla JavaScript
 ## 📦 PROJECT STRUCTURE
 
 AI CHAT BOT PROJECT/
+
 ├── chatbot-backend/ ← Node.js Server & AI Logic
 
 │ ├── server.js ← Main backend file (API + chat handling)
@@ -79,7 +80,7 @@ AI CHAT BOT PROJECT/
 │ └── package.json ← Backend dependencies
 
 │
-└── chatbot-frontend/ ← Complete UI Layer
+└──chatbot-frontend/ ← Complete UI Layer
 
 ├── index.html ← Main UI page (chat layout + sidebar)
 

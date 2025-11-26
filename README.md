@@ -1,136 +1,117 @@
-🤖🚀 REAL-TIME AI CHATBOT SYSTEM
+# 🤖🚀 REAL-TIME AI CHATBOT SYSTEM
 
-A Full-Stack Intelligent Chat Application with Modern UI, Stable API Handling & Live Feedback Logging
+A Modern, Stable & Intelligent AI Conversation Platform
 
-✨ Overview
+## ✨ Overview
 
-Welcome to the Real-Time AI Chatbot System, my Capstone Project designed to replicate the smooth, stable, and professional experience of tools like ChatGPT. This system features a modern UI, robust backend stability, and continuous state management — all integrated with the powerful Gemini 2.5 Flash API.
+The **Real-Time AI Chatbot System** is a full-stack capstone project designed to deliver a **smooth**, **stable**, and **professional** ChatGPT-like experience.
+It merges a custom frontend, a Node.js backend, and Gemini 2.5 Flash AI to produce fast, context-aware responses with high reliability.
 
-The project focuses on creating a fast, reliable, and context-aware AI experience capable of technical tasks such as code generation, debugging, and structured responses.
+---
 
-🎯 PROJECT FEATURES
-💬 SMART AI CHAT SYSTEM
+## 🎯 MAIN GOALS
 
-📚 Full conversation context retention (in-memory session manager)
+* ⚡ Fast and stable AI responses
+* 🧠 Complete conversation context retention
+* 🎨 Clean, modern ChatGPT-style UI
+* 🛡️ Reliable retry system for API protection
+* 📊 Chat and feedback storage for analysis
 
-⚡ Real-time responses via Gemini 2.5 Flash
+---
 
-🎯 Clean, concise AI output (enforced via system prompt)
+## 🌟 PROJECT FEATURES
 
-🧱 STABILITY & PERFORMANCE
+### 🤖 Smart AI Conversation
 
-🔁 Exponential Backoff Retry System to handle API rate limits
+* Maintains full chat history
+* Clean and concise replies
+* Powered by Gemini 2.5 Flash
 
-🧠 Crash-proof architecture for long technical responses
+### 🔄 High Stability System
 
-🌐 Optimized API communication layer for maximum reliability
+* Exponential backoff retry mechanism
+* Prevents API failures or freezes
+* Smooth handling of strict rate limits
 
-🖥️ FRONTEND UI/UX
+### 🖥️ Modern & Responsive UI
 
-🖤 Full-screen Dark Mode
+* Full-screen dark-mode layout
+* Sidebar navigation (ChatGPT-inspired)
+* Optimized across all screen sizes
 
-🧭 Static sidebar layout (ChatGPT-like design)
+### 👍 Built-in User Feedback
 
-📱 Responsive layout for all screen sizes
+* Upvote / Downvote rating system
+* All chats and feedback stored in MySQL
+* Useful for quality evaluation
 
-🎨 Clean typography and professional layout
+---
 
-📊 FEEDBACK & DATA LOGGING
+## 🛠️ TECH STACK
 
-👍⬆️ User Upvote / Downvote system
+### 🧩 Backend
 
-🗄️ Feedback stored in MySQL
+Node.js (Express.js)
 
-📝 Complete chat history logged server-side
+### 🧠 AI Engine
 
-🛠️ TECH STACK
-💻 Programming & Server
+Gemini 2.5 Flash
 
-Node.js (Express.js) → Backend API core & stability layer
+### 🗄️ Database
 
-Google Gemini 2.5 Flash → Conversational AI Engine
+MySQL
 
-🗄️ Database
+### 🎨 Frontend
 
-MySQL → Chat logs + User feedback storage
+HTML5, CSS, Vanilla JavaScript
 
-🎨 Frontend
+---
 
-HTML5
+## 📦 PROJECT STRUCTURE
 
-CSS (custom styles)
+Below is the project structure in the same **styled tree format** that you liked earlier:
 
-Vanilla JavaScript
-
-📦 PROJECT STRUCTURE
 AI CHAT BOT PROJECT/
-├── chatbot-backend/              ← Node.js Server & AI Logic
-│   ├── server.js                 ← Main backend file
-│   ├── db.js                     ← Database connection
-│   └── package.json
+├── chatbot-backend/   ← Node.js Server & AI Logic
+│   ├── server.js      ← Main backend file (API + chat handling)
+│   ├── db.js          ← Database connection layer
+│   └── package.json   ← Backend dependencies
 │
-└── chatbot-frontend/             ← Custom Built UI
-    ├── index.html                ← Main UI Page
-    └── js/
-        └── app.js               ← Handles UI events + API calls
+└── chatbot-frontend/  ← Complete UI Layer
+├── index.html     ← Main UI page (chat layout + sidebar)
+└── js/
+└── app.js     ← UI events & API request handler
 
-🗄️ DATABASE SCHEMA
-🗂️ chats
+---
 
-| id | user_id | query | response | created_at |
+## 🚀 HOW TO RUN THE PROJECT
 
-🗂️ feedback
+### 🔧 Requirements
 
-| id | user_id | chat_id | rating | comment | created_at |
+* Node.js
+* MySQL
+* Gemini API Key
 
-🚀 HOW TO RUN THE PROJECT LOCALLY
-1️⃣ Prerequisites
+### ▶️ Setup Steps
 
-MySQL Server Installed
+1. Clone the project
+2. Configure MySQL database (chats + feedback)
+3. Add environment variables (API key, DB credentials)
+4. Install backend dependencies
+5. Start the Node.js server
+6. Open the frontend and begin chatting
 
-Gemini API Key
+---
 
-2️⃣ Create the Database
--- Create the main database
-CREATE DATABASE IF NOT EXISTS chatbot_db;
+## 🎉 Final Notes
 
-USE chatbot_db;
+This system showcases strong full-stack development, AI integration, stability engineering, and clean UI/UX design — forming a powerful starting point for advanced AI applications.
 
--- Table to store conversation turns
-CREATE TABLE chats (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  query TEXT NOT NULL,
-  response TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+---
 
--- Table to store user ratings
-CREATE TABLE feedback (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  chat_id INT NULL,
-  rating VARCHAR(10) NOT NULL, -- 'UPVOTE' or 'DOWNVOTE'
-  comment TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+## 👥 TEAM MEMBERS
 
-3️⃣ Clone Repository & Install Backend
-git clone https://github.com/Anmol1430/AI-CHAT-BOT-SYSTEM.git
+* **Anmol Sahu**
+* **Nikhil Singh**
 
-cd "AI CHAT BOT PROJECT"/chatbot-backend
-npm install
-
-4️⃣ Add Environment Variables
-
-Create a .env file inside chatbot-backend:
-
-GEMINI_API_KEY="[YOUR_GEMINI_API_KEY_HERE]"
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=chatbot_db
-
-5️⃣ Start the Backend Server
-npm start
 

@@ -116,6 +116,6 @@ This system showcases strong full-stack development, AI integration, stability e
 ## 👥 TEAM MEMBERS
 
 * **Anmol Sahu**
-* **Nikhil Singh**
+* **Nikhil Kumar Singh**
 
 

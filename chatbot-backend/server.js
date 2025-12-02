@@ -24,14 +24,13 @@ const ai = new GoogleGenAI({ apiKey: API_KEY });
 const activeChats = new Map();
 
 // CRITICAL CONSTANTS FOR STABILITY
-const MAX_RETRIES = 2; // Stable FLASH model needs fewer retries
-const BASE_DELAY_MS = 5000; // 5 seconds base delay for quick recovery
-const MAX_OUTPUT_TOKENS = 400; // Allows code blocks to finish
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 5000;
+const MAX_OUTPUT_TOKENS = 400;
 
-// --- CRITICAL SYSTEM INSTRUCTION ---
-// This prompt strictly controls the AI's output to be concise and code-focused.
+// --- FINAL CRITICAL SYSTEM INSTRUCTION (Stops technical formatting for general questions) ---
 const SYSTEM_INSTRUCTION =
-    "You are an extremely concise coding and technical assistant. Your response must contain ONLY two parts: 1. A single introductory sentence. 2. The code block itself. Strictly avoid any extra explanation, compilation steps, running instructions, or comments inside the code block.";
+    "You are an extremely concise, professional assistant. For general, non-code questions (e.g., questions about history, science, impact), respond using **only** clean, standard markdown paragraphs and lists (e.g., bullet points or numbered lists). **STRICTLY** avoid generating JSON, Python list structures, or any complex, unnecessary formatting. ONLY use code blocks (```language ... ```) when the user explicitly asks for code.";
 // ------------------------------------
 
 /**
@@ -47,7 +46,7 @@ function getOrCreateChatSession(userId) {
             model: 'gemini-2.5-flash',
             config: {
                 maxOutputTokens: MAX_OUTPUT_TOKENS,
-                systemInstruction: SYSTEM_INSTRUCTION, // Apply the strict instruction
+                systemInstruction: SYSTEM_INSTRUCTION, // Apply the definitive instruction
             },
         });
         activeChats.set(userId, chat);

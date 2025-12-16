@@ -1,140 +1,250 @@
-// server.js
+// server.js (Final stable version with aggressive output cleanup on the backend and correct Session Management)
 
-// 1. Load environment variables (including API key)
-require('dotenv').config();
+// 1. Load environment variables (using the modern import syntax)
+import 'dotenv/config';
 
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const db = require('./db');
+import express from 'express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+// NOTE: You must ensure your local db.js file is also an ES Module
+import db from './db.js';
+
 // --- MODULES FOR AI LOGIC ---
-const { GoogleGenAI } = require('@google/genai');
+import { GoogleGenAI } from '@google/genai';
 // ------------------------------------------------------------------
 
 const app = express();
 const PORT = 3000;
 
 // --- AI CONFIGURATION AND MEMORY (CONSOLIDATED) ---
-// Explicitly retrieve the API key
 const API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-
-// Initialize the AI client
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-// Stores active chat sessions, keyed by userId
 const activeChats = new Map();
 
 // CRITICAL CONSTANTS FOR STABILITY
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 5000;
-const MAX_OUTPUT_TOKENS = 400;
+const MAX_OUTPUT_TOKENS = 1024;
 
-// --- FINAL CRITICAL SYSTEM INSTRUCTION (Stops technical formatting for general questions) ---
+// --- DEFINITIVE SYSTEM INSTRUCTION (Forces clean response format) ---
 const SYSTEM_INSTRUCTION =
-    "You are an extremely concise, professional assistant. For general, non-code questions (e.g., questions about history, science, impact), respond using **only** clean, standard markdown paragraphs and lists (e.g., bullet points or numbered lists). **STRICTLY** avoid generating JSON, Python list structures, or any complex, unnecessary formatting. ONLY use code blocks (```language ... ```) when the user explicitly asks for code.";
+"You are a professional technical assistant. When providing code, always wrap it in markdown code fences (```language ... ```). Do not include excessive introductory or concluding text.";
 // ------------------------------------
 
 /**
- * Retrieves an existing chat session for a user or creates a new one.
- */
+* Retrieves an existing chat session for a user or creates a new one.
+*/
 function getOrCreateChatSession(userId) {
-    let chat = activeChats.get(userId);
+let chat = activeChats.get(userId);
 
-    if (!chat) {
-        console.log(`[Chat] Creating new chat session for user ${userId}`);
+if (!chat) {
+console.log(`[Chat] Creating new chat session for user ${userId}`);
 
-        chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                maxOutputTokens: MAX_OUTPUT_TOKENS,
-                systemInstruction: SYSTEM_INSTRUCTION, // Apply the definitive instruction
-            },
-        });
-        activeChats.set(userId, chat);
-    }
+chat = ai.chats.create({
+model: 'gemini-2.5-flash',
+config: {
+maxOutputTokens: MAX_OUTPUT_TOKENS,
+systemInstruction: SYSTEM_INSTRUCTION,
+},
+});
+activeChats.set(userId, chat);
+}
 
-    return chat;
+return chat;
 }
 // ------------------------------------------------------------------
 
+/**
+ * Aggressively cleans the AI response by extracting only the content from the first code block.
+ * @param {string} rawResponse The raw text response from Gemini.
+ * @returns {string} Cleaned code wrapped in markdown fences, or the original text if no code is found.
+ */
+function aggressivelyExtractCode(rawResponse) {
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)\n```/;
+    const match = rawResponse.match(codeBlockRegex);
+
+    if (match && match[2]) {
+        const lang = match[1] || 'plaintext';
+        let codeContent = match[2];
+
+        codeContent = codeContent.replace(/<(\/)?\w+>/g, '');
+        codeContent = codeContent.replace(/\*(\w+)\*/g, '$1');
+
+        return `\`\`\`${lang}\n${codeContent.trim()}\n\`\`\``;
+    }
+
+    return rawResponse;
+}
+
 
 // --- Configuration ---
-app.use(cors());
+// ULTIMATE FIX: This allows all origins (*), bypassing all cross-origin restrictions.
+app.use(cors({ origin: '*' }));
+
 app.use(bodyParser.json());
 
 // ------------------------------------------------------------------
 // API 1: MAIN CHAT INTERACTION (POST /api/chat)
 // ------------------------------------------------------------------
 app.post('/api/chat', async (req, res) => {
-    const { query, userId } = req.body;
+    // CRITICAL: Now accepting currentSessionId from frontend
+    const { query, userId, image_data, mime_type, currentSessionId } = req.body;
     let chatbotResponse = "Sorry, I couldn't process your request due to an internal error.";
     const logUserId = userId || 1;
 
-    if (!query) {
-        return res.status(400).send({ response: "Query cannot be empty." });
+    if (!query && !image_data) {
+        return res.status(400).send({ response: "Query or attachment required." });
     }
 
-    // Get the chat session (including history)
+    let contents = [{ text: query || "Describe this attached file." }];
+    if (image_data && mime_type) {
+        contents.push({
+            inlineData: {
+                data: image_data,
+                mimeType: mime_type,
+            }
+        });
+    }
+
     const chat = getOrCreateChatSession(logUserId);
 
     let attempt = 0;
     while (attempt < MAX_RETRIES) {
         try {
-            // 1. Call the Gemini API using the chat session's sendMessage method
-            const result = await chat.sendMessage({ message: query });
+            const result = await chat.sendMessage({ message: contents });
 
-            chatbotResponse = result.text;
+            chatbotResponse = aggressivelyExtractCode(result.text);
 
-            // Success check: If we have a non-empty response, proceed and break the loop
             if (chatbotResponse && chatbotResponse.trim().length > 0) {
+                let finalChatId = currentSessionId || null;
 
-                // 2. Log the interaction to the 'chats' table in MySQL
-                let newChatId = null;
                 try {
-                    const chatSql = 'INSERT INTO chats (user_id, query, response) VALUES (?, ?, ?)';
-                    const [result] = await db.execute(chatSql, [logUserId, query, chatbotResponse]);
+                    // 1. Insert the query message first (this is the user's turn)
+                    const querySql = 'INSERT INTO chats (user_id, chat_id, query, response) VALUES (?, ?, ?, ?)';
+                    const [queryResult] = await db.execute(querySql, [logUserId, finalChatId, query || '[File Attached]', '']);
 
-                    newChatId = result.insertId;
+                    // 2. If this is a new chat, the inserted ID becomes the chat_id for the entire session.
+                    if (!finalChatId) {
+                        finalChatId = queryResult.insertId;
+                        // Update the newly inserted row with its own ID as the chat_id
+                        const updateSql = 'UPDATE chats SET chat_id = ? WHERE id = ?';
+                        await db.execute(updateSql, [finalChatId, finalChatId]);
+                    }
 
-                    console.log(`Gemini response logged for user ${logUserId}. Chat ID: ${newChatId}`);
+                    // 3. Now insert the AI's response turn, using the determined chat_id.
+                    const responseSql = 'INSERT INTO chats (user_id, chat_id, query, response) VALUES (?, ?, ?, ?)';
+                    await db.execute(responseSql, [logUserId, finalChatId, '', result.text]); // Empty query for AI response turn
+
+                    console.log(`Gemini response logged for user ${logUserId}. Session ID: ${finalChatId}`);
+
                 } catch (dbError) {
                     console.error("Database logging failed:", dbError.message);
                 }
 
-                // 3. Send the final response back to the Frontend
+                // Send the session ID back to the frontend
                 return res.status(200).send({
                     response: chatbotResponse,
-                    chatId: newChatId // Send the ID back to the client
+                    chatId: finalChatId // Send the session ID back
                 });
             }
 
-            // If the response is empty but no exception was thrown (transient issue)
             console.warn(`Attempt ${attempt + 1}: Received empty response from API. Retrying...`);
 
         } catch (error) {
-            // Log the entire error object for detailed debugging
             console.error(`Gemini API Failure on attempt ${attempt + 1} - FULL DETAILS:`, error);
 
-            // Handle hard errors (like a bad API key) and exit loop
             if (error.code === 400 || (error.message && error.message.includes('API key not valid'))) {
                 chatbotResponse = "Error 400: Invalid API Key. Please check your .env file and ensure it is active.";
                 return res.status(500).send({ response: chatbotResponse });
             }
         }
 
-        // --- Exponential Backoff Delay ---
         attempt++;
         if (attempt < MAX_RETRIES) {
-            // Wait time: 5s, 10s
             const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
             console.log(`Waiting for ${delay}ms before next retry...`);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
 
-    // If the loop finishes without successfully getting a response after MAX_RETRIES
     chatbotResponse = "Error: The AI service failed to respond after multiple retries.";
     res.status(500).send({ response: chatbotResponse });
 });
+
+// ------------------------------------------------------------------
+// API 8: GET CHAT HISTORY SESSIONS (GET /api/history)
+// ------------------------------------------------------------------
+app.get('/api/history', async (req, res) => {
+    const userId = req.query.userId || 1;
+
+    try {
+        // Find the first query (where response is empty or null) for each chat_id, grouped by the lowest ID for the session.
+        const historySql = `
+            SELECT
+                t1.chat_id,
+                t1.query,
+                t1.timestamp
+            FROM chats t1
+            INNER JOIN (
+                SELECT chat_id, MIN(id) AS min_id
+                FROM chats
+                WHERE user_id = ?
+                GROUP BY chat_id
+            ) AS t2 ON t1.id = t2.min_id
+            ORDER BY t1.id DESC
+        `;
+        const [sessions] = await db.execute(historySql, [userId]);
+
+        console.log(`Fetched ${sessions.length} chat sessions for user ${userId}.`);
+        res.status(200).send(sessions);
+
+    } catch (error) {
+        console.error("Error fetching chat history sessions:", error.message);
+        res.status(500).send({ message: 'Failed to fetch chat history.' });
+    }
+});
+
+
+// ------------------------------------------------------------------
+// API 9: GET MESSAGES FOR A SPECIFIC CHAT (GET /api/history/:chatId)
+// ------------------------------------------------------------------
+app.get('/api/history/:chatId', async (req, res) => {
+    const chatId = req.params.chatId;
+
+    try {
+        // Fetch all messages for the given chat_id, ordered by id (which acts as turn order)
+        // We fetch both query and response to reconstruct the conversation turns.
+        const messagesSql = 'SELECT query, response, timestamp FROM chats WHERE chat_id = ? ORDER BY id ASC';
+        const [messages] = await db.execute(messagesSql, [chatId]);
+
+        // Transform the raw rows into a clean turn-based structure for the frontend
+        const turns = [];
+        for (let i = 0; i < messages.length; i += 2) {
+             // Assuming user turn (query) is always followed by AI turn (response)
+             const userTurn = messages[i];
+             const aiTurn = messages[i + 1] || { query: '', response: 'Error: AI response missing.' };
+
+             // Add the user's turn
+             if (userTurn.query) {
+                 turns.push({ sender: 'user', text: userTurn.query, timestamp: userTurn.timestamp });
+             }
+
+             // Add the AI's turn
+             if (aiTurn.response) {
+                 turns.push({ sender: 'ai', text: aiTurn.response, timestamp: aiTurn.timestamp });
+             }
+        }
+
+
+        console.log(`Fetched ${turns.length} messages for Chat ID: ${chatId}.`);
+        res.status(200).send(turns);
+
+    } catch (error) {
+        console.error(`Error fetching messages for Chat ID ${chatId}:`, error.message);
+        res.status(500).send({ message: 'Failed to fetch chat messages.' });
+    }
+});
+
 
 // ------------------------------------------------------------------
 // API 7: RESET CHAT SESSION (POST /api/chat/reset)
@@ -143,37 +253,13 @@ app.post('/api/chat/reset', (req, res) => {
     const { userId } = req.body;
     const logUserId = userId || 1;
 
-    // Delete the chat session from the server's memory Map
     if (activeChats.has(logUserId)) {
         activeChats.delete(logUserId);
         console.log(`[Chat] Deleted chat session for user ${logUserId}`);
         return res.status(200).send({ message: 'Session cleared.' });
     }
 
-    // If it wasn't found, still send success
     return res.status(200).send({ message: 'No session found to clear.' });
-});
-
-// ------------------------------------------------------------------
-// API 2: FEEDBACK SUBMISSION (POST /api/feedback/comment)
-// ------------------------------------------------------------------
-app.post('/api/feedback/comment', async (req, res) => {
-    const { userId, rating, comment } = req.body;
-
-    if (!userId || !rating) {
-         return res.status(400).send({ message: 'User ID and rating are required.' });
-    }
-
-    try {
-        const feedbackSql = 'INSERT INTO feedback (user_id, rating, comment) VALUES (?, ?, ?)';
-        await db.execute(feedbackSql, [userId, rating, comment]);
-        console.log(`Feedback comment logged: User ${userId}, Rating ${rating}`);
-        res.status(200).send({ message: 'Feedback logged successfully.' });
-
-    } catch (error) {
-        console.error("Error logging feedback:", error.message);
-        res.status(500).send({ message: 'Failed to log feedback to database.' });
-    }
 });
 
 // ------------------------------------------------------------------
@@ -183,7 +269,7 @@ app.post('/api/feedback/rate', async (req, res) => {
     const { userId, chatId, rating } = req.body;
 
     if (!userId || !chatId || !rating) {
-         return res.status(400).send({ message: 'User ID, Chat ID, and rating are required.' });
+        return res.status(400).send({ message: 'User ID, Chat ID, and rating are required.' });
     }
 
     try {
